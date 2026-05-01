@@ -9,6 +9,7 @@ vi.mock('@prisma/client', () => ({
 describe('db singleton', () => {
   beforeEach(() => {
     vi.resetModules()
+    delete (globalThis as Record<string, unknown>).prisma
   })
 
   it('exports a db object', async () => {
