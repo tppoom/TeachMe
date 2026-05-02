@@ -16,6 +16,7 @@ export function CreateForm() {
   const [goals, setGoals] = useState('')
   const [depth, setDepth] = useState<Depth>('beginner')
   const [urls, setUrls] = useState<string[]>([])
+  const [files, setFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -41,6 +42,23 @@ export function CreateForm() {
       referenceTexts = results
         .filter(r => r.status === 'fulfilled' && r.value.text)
         .map(r => (r as PromiseFulfilledResult<{ text: string }>).value.text)
+    }
+
+    if (files.length > 0) {
+      setStatus('Reading uploaded files...')
+      const fileTexts = await Promise.allSettled(
+        files.map(async (file) => {
+          const formData = new FormData()
+          formData.append('file', file)
+          const res = await fetch('/api/extract-file', { method: 'POST', body: formData })
+          const data = await res.json()
+          return data.text as string
+        })
+      )
+      const extracted = fileTexts
+        .filter(r => r.status === 'fulfilled' && r.value)
+        .map(r => (r as PromiseFulfilledResult<string>).value)
+      referenceTexts = [...referenceTexts, ...extracted]
     }
 
     setStatus('Generating lesson (this takes 30–60 seconds)...')
@@ -110,6 +128,33 @@ export function CreateForm() {
         </div>
         <div className="p-4">
           <UrlInput urls={urls} onChange={setUrls} />
+          <div className="border-t pt-4 mt-2">
+            <p className="text-xs text-muted-foreground mb-2">FILES — PDF, DOCX, TXT · Max 5 files</p>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.docx,.txt"
+              onChange={e => setFiles(prev => {
+                const newFiles = Array.from(e.target.files ?? [])
+                return [...prev, ...newFiles].slice(0, 5)
+              })}
+              className="text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-border file:text-xs file:bg-muted file:text-foreground"
+            />
+            {files.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {files.map((f, i) => (
+                  <div key={f.name} className="flex items-center gap-2 text-xs bg-muted/30 rounded px-3 py-1.5">
+                    <span className="flex-1 truncate text-muted-foreground">{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))}
+                      className="text-muted-foreground hover:text-foreground"
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
