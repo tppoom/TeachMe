@@ -12,7 +12,7 @@ export function UrlInput({ urls, onChange }: UrlInputProps) {
   const [draft, setDraft] = useState('')
 
   function add() {
-    if (!draft.trim()) return
+    if (!draft.trim() || urls.length >= 5) return
     onChange([...urls, draft.trim()])
     setDraft('')
   }
@@ -36,12 +36,15 @@ export function UrlInput({ urls, onChange }: UrlInputProps) {
         </Button>
       </div>
       {urls.map((url, i) => (
-        <div key={i} className="flex items-center gap-2 text-sm bg-muted/30 rounded px-3 py-1.5">
+        <div key={url} className="flex items-center gap-2 text-sm bg-muted/30 rounded px-3 py-1.5">
           <span className="flex-1 truncate text-muted-foreground">{url}</span>
           <button type="button" onClick={() => remove(i)}
             className="text-muted-foreground hover:text-foreground">×</button>
         </div>
       ))}
+      {urls.length >= 5 && (
+        <p className="text-xs text-muted-foreground">Maximum 5 URLs</p>
+      )}
     </div>
   )
 }
