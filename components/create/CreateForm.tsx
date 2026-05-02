@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,7 @@ export function CreateForm() {
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -55,9 +56,16 @@ export function CreateForm() {
           return data.text as string
         })
       )
+      const rejected = fileTexts.filter(r => r.status === 'rejected')
       const extracted = fileTexts
         .filter(r => r.status === 'fulfilled' && r.value)
         .map(r => (r as PromiseFulfilledResult<string>).value)
+      if (rejected.length > 0) {
+        setError(`${rejected.length} file(s) could not be read. Proceeding with the rest.`)
+        // small pause so user sees the warning before proceeding
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        setError(null)
+      }
       referenceTexts = [...referenceTexts, ...extracted]
     }
 
@@ -131,13 +139,25 @@ export function CreateForm() {
           <div className="border-t pt-4 mt-2">
             <p className="text-xs text-muted-foreground mb-2">FILES — PDF, DOCX, TXT · Max 5 files</p>
             <input
+              ref={fileInputRef}
               type="file"
               multiple
               accept=".pdf,.docx,.txt"
-              onChange={e => setFiles(prev => {
+              onChange={e => {
                 const newFiles = Array.from(e.target.files ?? [])
-                return [...prev, ...newFiles].slice(0, 5)
-              })}
+                const MAX = 10 * 1024 * 1024
+                const oversized = newFiles.filter(f => f.size > MAX)
+                if (oversized.length > 0) {
+                  setError(`File too large (max 10 MB): ${oversized.map(f => f.name).join(', ')}`)
+                  if (fileInputRef.current) fileInputRef.current.value = ''
+                  return
+                }
+                setFiles(prev => {
+                  const deduped = newFiles.filter(nf => !prev.some(p => p.name === nf.name))
+                  return [...prev, ...deduped].slice(0, 5)
+                })
+                if (fileInputRef.current) fileInputRef.current.value = ''
+              }}
               className="text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded file:border file:border-border file:text-xs file:bg-muted file:text-foreground"
             />
             {files.length > 0 && (
