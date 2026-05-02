@@ -1,12 +1,14 @@
 import { KeyPoints } from './KeyPoints'
+import { MermaidDiagram } from './MermaidDiagram'
+import { ChartBlock } from './ChartBlock'
+import { CodePlayground } from './CodePlayground'
 import type { LessonSection, Visual } from '@/types/lesson'
 
 function VisualBlock({ visual }: { visual: Visual }) {
-  return (
-    <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-      [{visual.type.toUpperCase()}] {visual.title} — visual rendering coming soon
-    </div>
-  )
+  if (visual.type === 'mermaid') return <MermaidDiagram visual={visual} />
+  if (visual.type === 'chart') return <ChartBlock visual={visual} />
+  if (visual.type === 'code') return <CodePlayground visual={visual} />
+  return null
 }
 
 interface SectionBlockProps {
