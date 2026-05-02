@@ -2,12 +2,14 @@
 import { useState } from 'react'
 import { TableOfContents } from './TableOfContents'
 import { SectionBlock } from './SectionBlock'
+import { TutorChat } from '@/components/tutor/TutorChat'
 import type { LessonRecord } from '@/types/lesson'
 
 export function LessonViewer({ lesson }: { lesson: LessonRecord }) {
   const [activeSectionId, setActiveSectionId] = useState(
     lesson.content.sections[0]?.id ?? ''
   )
+  const activeSection = lesson.content.sections.find(s => s.id === activeSectionId)
 
   return (
     <div className="flex gap-8 relative">
@@ -47,10 +49,14 @@ export function LessonViewer({ lesson }: { lesson: LessonRecord }) {
         </div>
       </article>
 
-      {/* Right: AI Tutor placeholder — wired in Task 13 */}
+      {/* Right: AI Tutor */}
       <aside className="w-72 flex-shrink-0">
-        <div className="sticky top-6 border rounded-xl bg-muted/20 p-4 text-sm text-muted-foreground">
-          AI Tutor — coming in Task 13
+        <div className="sticky top-6 h-[calc(100vh-3rem)]">
+          <TutorChat
+            lessonContent={lesson.content}
+            currentSectionId={activeSectionId}
+            currentSectionTitle={activeSection?.title ?? ''}
+          />
         </div>
       </aside>
     </div>

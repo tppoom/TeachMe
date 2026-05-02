@@ -13,6 +13,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
     "@ai-sdk/openai": "^3.0.53",
+    "@ai-sdk/react": "^3.0.176",
     "@base-ui/react": "^1.4.1",
     "@codesandbox/sandpack-react": "^2.20.0",
     "@prisma/client": "^7.8.0",
