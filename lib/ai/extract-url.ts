@@ -1,5 +1,4 @@
 import * as cheerio from 'cheerio'
-// @ts-ignore
 import { YoutubeTranscript } from 'youtube-transcript'
 
 export function isYouTubeUrl(url: string): boolean {

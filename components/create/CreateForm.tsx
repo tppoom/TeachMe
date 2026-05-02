@@ -53,6 +53,7 @@ export function CreateForm() {
     if (!res.ok) {
       const data = await res.json()
       setError(data.error ?? 'Something went wrong')
+      setStatus(null)
       setLoading(false)
       return
     }
@@ -70,7 +71,7 @@ export function CreateForm() {
     }
 
     if (lessonId) router.push(`/lessons/${lessonId}`)
-    else { setError('Failed to get lesson ID'); setLoading(false) }
+    else { setError('Failed to get lesson ID'); setStatus(null); setLoading(false) }
   }
 
   return (
