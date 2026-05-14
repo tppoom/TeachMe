@@ -36,6 +36,14 @@ const PIE_OPTIONS = {
 } as const
 
 export function ChartBlock({ visual }: { visual: ChartVisual }) {
+  if (!visual.data?.labels || !visual.data?.datasets) {
+    return (
+      <div className="rounded-lg border border-violet-800/40 bg-violet-950/20 px-4 py-3 text-xs" style={{ color: 'var(--fg-4)' }}>
+        Chart data unavailable — {visual.title}
+      </div>
+    )
+  }
+
   const chartData = {
     labels: visual.data.labels,
     datasets: visual.data.datasets.map((ds, i) => ({

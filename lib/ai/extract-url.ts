@@ -27,5 +27,5 @@ export async function extractTextFromUrl(url: string): Promise<string> {
   const $ = cheerio.load(html)
   $('script, style, nav, footer, header, aside').remove()
   const text = $('main, article, .content, body').first().text()
-  return `[Web content from ${url}]\n${text.replace(/\s+/g, ' ').trim().slice(0, 8000)}`
+  return `[Web content from ${url}]\n${text.replace(/\s+/g, ' ').trim().slice(0, 40000)}`
 }

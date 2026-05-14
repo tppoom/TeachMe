@@ -1,81 +1,74 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServer } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import { generateLesson } from '@/lib/ai/generate-lesson'
-import { parseLessonContent } from '@/lib/ai/parse-lesson'
+import { generateCourse } from '@/lib/ai/pipeline'
+import { getActiveProvider } from '@/lib/ai/provider'
+import type { LessonContent } from '@/types/lesson'
+import type { Prisma } from '@prisma/client'
 
+/**
+ * Streams pipeline events as newline-delimited JSON (NDJSON).
+ * The client (`CreateForm`) reads one event per line.
+ *
+ * Event types are defined in `lib/ai/pipeline-types.ts`.
+ */
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { topic, depth, priorKnowledge, goals, referenceTexts } = await req.json()
+  const { topic, priorKnowledge, goals, referenceTexts } = await req.json()
   if (!topic) return NextResponse.json({ error: 'topic is required' }, { status: 400 })
 
-  try {
-    const stream = await generateLesson({
-      userId: user.id,
-      topic,
-      depth: depth ?? 'beginner',
-      priorKnowledge,
-      goals,
-      referenceTexts,
-    })
+  const encoder = new TextEncoder()
 
-    let fullText = ''
-    const encoder = new TextEncoder()
+  const readable = new ReadableStream({
+    async start(controller) {
+      const send = (event: unknown) => {
+        controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
+      }
 
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream.textStream) {
-            fullText += chunk
-            controller.enqueue(encoder.encode(chunk))
+      try {
+        for await (const event of generateCourse({ topic, priorKnowledge, goals, referenceTexts })) {
+          if (event.type === 'complete') {
+            // Persist and emit a lessonId event.
+            const content: LessonContent = event.content
+            const provider = await getActiveProvider()
+            const lesson = await db.lesson.create({
+              data: {
+                title: topic,
+                topic,
+                priorKnowledge: priorKnowledge ?? null,
+                goals: goals ?? null,
+                provider,
+                content: content as unknown as Prisma.InputJsonValue,
+                atlas: event.atlas as unknown as Prisma.InputJsonValue,
+                syllabus: event.syllabus as unknown as Prisma.InputJsonValue,
+                language: event.profile.language ?? 'English',
+                sourceUrls: '[]',
+                sourceFiles: '[]',
+              },
+            })
+            send({ type: 'lessonId', id: lesson.id })
+          } else {
+            send(event)
           }
-
-          const content = parseLessonContent(fullText) as unknown as import('@prisma/client').Prisma.InputJsonValue
-          const dbUser = await db.user.findUnique({ where: { id: user.id } })
-          const lesson = await db.lesson.create({
-            data: {
-              userId: user.id,
-              title: topic,
-              topic,
-              priorKnowledge: priorKnowledge ?? null,
-              goals: goals ?? null,
-              depth: depth ?? 'beginner',
-              provider: dbUser?.activeProvider ?? 'anthropic',
-              content,
-              sourceUrls: [],
-              sourceFiles: [],
-            },
-          })
-          controller.enqueue(encoder.encode(`\n\n__LESSON_ID__${lesson.id}__`))
-        } catch (e: any) {
-          controller.enqueue(encoder.encode(`\n\n__ERROR__${e.message}`))
         }
+      } catch (e) {
+        send({ type: 'error', message: e instanceof Error ? e.message : String(e) })
+      } finally {
         controller.close()
-      },
-    })
+      }
+    },
+  })
 
-    return new Response(readable, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-Content-Type-Options': 'nosniff',
-      },
-    })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
-  }
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-cache, no-transform',
+    },
+  })
 }
 
-export async function GET(req: Request) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+export async function GET() {
   const lessons = await db.lesson.findMany({
-    where: { userId: user.id },
-    select: { id: true, title: true, topic: true, depth: true, provider: true, createdAt: true },
+    select: { id: true, title: true, topic: true, provider: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   })
   return NextResponse.json(lessons)

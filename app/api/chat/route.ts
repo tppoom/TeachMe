@@ -1,23 +1,17 @@
-import { NextResponse } from 'next/server'
-import { createSupabaseServer } from '@/lib/supabase/server'
 import { createUIMessageStreamResponse, createUIMessageStream, convertToModelMessages, type UIMessage } from 'ai'
-import { generateChat } from '@/lib/ai/generate-chat'
+import { generateChat, buildChatSystem, buildChatUserTurn } from '@/lib/ai/generate-chat'
+import { getActiveProvider, streamCompletion } from '@/lib/ai/provider'
 import type { LessonContent } from '@/types/lesson'
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServer()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { messages, lessonContent, currentSectionId } = await req.json() as {
+  const { messages, lessonContent, currentSectionId, language } = await req.json() as {
     messages: UIMessage[]
     lessonContent: LessonContent
     currentSectionId: string
+    language?: string
   }
 
-  // Convert UIMessages to ModelMessages for the AI SDK
   const modelMessages = await convertToModelMessages(messages)
-  // Extract simple role/content pairs for our generateChat function
   const chatMessages = modelMessages
     .filter(m => m.role === 'user' || m.role === 'assistant')
     .map(m => ({
@@ -30,15 +24,31 @@ export async function POST(req: Request) {
             .join(''),
     }))
 
+  const provider = await getActiveProvider()
+  const isCli = provider === 'claude-code' || provider === 'gemini-cli' || provider === 'codex-cli'
+
+  // CLI providers: render the conversation as a flat prompt and stream the reply.
+  if (isCli) {
+    const system = buildChatSystem(lessonContent, currentSectionId, language)
+    const userTurn = buildChatUserTurn(chatMessages)
+    const partId = 'cli-text-0'
+
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        writer.write({ type: 'text-start', id: partId } as any)
+        for await (const chunk of streamCompletion({ system, prompt: userTurn, maxOutputTokens: 800 })) {
+          writer.write({ type: 'text-delta', id: partId, delta: chunk } as any)
+        }
+        writer.write({ type: 'text-end', id: partId } as any)
+      },
+    })
+    return createUIMessageStreamResponse({ stream })
+  }
+
+  // API providers: AI SDK message-stream path.
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
-      const result = await generateChat({
-        userId: user.id,
-        lessonContent,
-        currentSectionId,
-        messages: chatMessages,
-      })
-
+      const result = await generateChat({ lessonContent, currentSectionId, messages: chatMessages, language })
       writer.merge(result.toUIMessageStream())
     },
   })

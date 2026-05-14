@@ -3,25 +3,48 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport, isTextUIPart } from 'ai'
 import { useRef, useEffect, useState } from 'react'
 import type { LessonContent } from '@/types/lesson'
+import { ChatMarkdown } from './ChatMarkdown'
 
 interface TutorChatProps {
   lessonContent: LessonContent
   currentSectionId: string
   currentSectionTitle: string
+  language?: string
+  onClose?: () => void
 }
 
-export function TutorChat({
-  lessonContent,
-  currentSectionId,
-  currentSectionTitle,
-}: TutorChatProps) {
+const SUGGESTIONS = [
+  'Teach me the underlying mechanism',
+  'Show me a real-world example',
+  'What misconception trips people up here?',
+  'Compare this with the alternative',
+]
+
+function CloseIcon() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  )
+}
+
+function SendIcon() {
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+  )
+}
+
+export function TutorChat({ lessonContent, currentSectionId, currentSectionTitle, language, onClose }: TutorChatProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
+  const [focused, setFocused] = useState(false)
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: '/api/chat',
-      body: { lessonContent, currentSectionId },
+      body: { lessonContent, currentSectionId, language },
     }),
   })
 
@@ -38,66 +61,137 @@ export function TutorChat({
     setInput('')
   }
 
+  function quickAsk(text: string) {
+    if (isLoading) return
+    sendMessage({ text })
+  }
+
   return (
-    <div className="flex flex-col h-full border rounded-xl bg-background overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg)' }}>
       {/* Header */}
-      <div className="px-4 py-3 border-b bg-muted/30 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs">
-            🤖
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">AI Tutor</p>
-            <div className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-              <p className="text-xs text-muted-foreground truncate">
-                {currentSectionTitle || 'Loading...'}
-              </p>
-            </div>
-          </div>
+      <div
+        className="px-4 py-3 flex-shrink-0 flex items-center gap-3"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        <div
+          className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[14px] flex-shrink-0"
+          style={{ background: 'var(--fg)', color: 'var(--bg)' }}
+        >
+          ✦
         </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold tracking-[-0.005em]" style={{ color: 'var(--fg)' }}>
+            Tutor
+          </p>
+          <p className="text-[11px] truncate inline-flex items-center gap-1.5" style={{ color: 'var(--fg-4)' }}>
+            <span className="w-1.5 h-1.5 rounded-full pulse" style={{ background: 'var(--success)' }} />
+            {currentSectionTitle || 'Ready to help'}
+          </p>
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Close tutor"
+            className="w-7 h-7 flex items-center justify-center rounded-[7px] transition-colors"
+            style={{ color: 'var(--fg-4)' }}
+            onMouseEnter={e => {
+              ;(e.currentTarget as HTMLElement).style.background = 'var(--bg-sunken)'
+              ;(e.currentTarget as HTMLElement).style.color = 'var(--fg)'
+            }}
+            onMouseLeave={e => {
+              ;(e.currentTarget as HTMLElement).style.background = 'transparent'
+              ;(e.currentTarget as HTMLElement).style.color = 'var(--fg-4)'
+            }}
+          >
+            <CloseIcon />
+          </button>
+        )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
         {messages.length === 0 && (
-          <div className="rounded-lg bg-muted/30 p-3 text-xs text-muted-foreground">
-            Hi! I'm your tutor for this lesson. Ask me anything about what you're reading.
+          <div className="space-y-3">
+            <div
+              className="rounded-[10px] p-3.5 text-[12.5px] leading-[1.65]"
+              style={{
+                background: 'var(--bg-sunken)',
+                color: 'var(--fg-2)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              I'm reading this chapter alongside you. Ask anything — about a sentence, a concept, or where this fits in.
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] mb-2" style={{ color: 'var(--fg-4)' }}>
+                Try asking
+              </p>
+              <div className="space-y-1.5">
+                {SUGGESTIONS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => quickAsk(s)}
+                    className="w-full text-left text-[12.5px] px-3 py-2 rounded-[8px] transition-all"
+                    style={{
+                      background: 'var(--bg-elev)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--fg-2)',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
+
         {messages.map(m => {
-          const text = m.parts
-            .filter(isTextUIPart)
-            .map(p => p.text)
-            .join('')
+          const text = m.parts.filter(isTextUIPart).map(p => p.text).join('')
           if (!text) return null
           return (
-            <div key={m.id} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : ''}`}>
+            <div key={m.id} className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {m.role === 'assistant' && (
-                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex-shrink-0 mt-0.5" />
+                <div
+                  className="w-6 h-6 rounded-[7px] flex items-center justify-center text-[11px] flex-shrink-0 mt-0.5"
+                  style={{ background: 'var(--fg)', color: 'var(--bg)' }}
+                >
+                  ✦
+                </div>
               )}
               <div
-                className={`rounded-lg px-3 py-2 text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap ${
-                  m.role === 'user'
-                    ? 'bg-primary/20 text-foreground border border-primary/30'
-                    : 'bg-muted/50 text-foreground border border-border'
-                }`}
+                className={`rounded-[10px] px-3 py-2 text-[12.5px] leading-[1.65] ${m.role === 'user' ? 'max-w-[85%] whitespace-pre-wrap' : 'max-w-[92%]'}`}
+                style={m.role === 'user'
+                  ? { background: 'var(--fg)', color: 'var(--bg)' }
+                  : { background: 'var(--bg-sunken)', color: 'var(--fg-2)', border: '1px solid var(--border)' }
+                }
               >
-                {text}
+                {m.role === 'assistant' ? <ChatMarkdown text={text} /> : text}
               </div>
             </div>
           )
         })}
+
         {isLoading && (
           <div className="flex gap-2">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex-shrink-0" />
-            <div className="bg-muted/50 border border-border rounded-lg px-3 py-2">
+            <div
+              className="w-6 h-6 rounded-[7px] flex items-center justify-center text-[11px] flex-shrink-0"
+              style={{ background: 'var(--fg)', color: 'var(--bg)' }}
+            >
+              ✦
+            </div>
+            <div
+              className="rounded-[10px] px-3 py-2.5"
+              style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}
+            >
               <div className="flex gap-1">
                 {[0, 1, 2].map(i => (
                   <div
                     key={i}
-                    className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce"
-                    style={{ animationDelay: `${i * 150}ms` }}
+                    className="w-1.5 h-1.5 rounded-full animate-bounce"
+                    style={{ background: 'var(--fg-4)', animationDelay: `${i * 150}ms` }}
                   />
                 ))}
               </div>
@@ -108,24 +202,50 @@ export function TutorChat({
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t p-3 flex gap-2 flex-shrink-0">
+      <form
+        onSubmit={handleSubmit}
+        className="flex gap-2 p-3 flex-shrink-0"
+        style={{ borderTop: '1px solid var(--border)' }}
+      >
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="Ask about this section..."
-          className="flex-1 text-xs bg-muted/30 border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder="Ask about this chapter..."
+          style={{
+            flex: 1,
+            fontSize: 13,
+            padding: '8px 12px',
+            background: 'var(--bg-elev)',
+            color: 'var(--fg)',
+            border: '1px solid',
+            borderColor: focused ? 'var(--fg-3)' : 'var(--border)',
+            borderRadius: 9,
+            outline: 'none',
+            boxShadow: focused ? '0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)' : 'none',
+            transition: 'border-color 150ms, box-shadow 150ms',
+            fontFamily: 'inherit',
+          }}
         />
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="bg-gradient-to-br from-indigo-500 to-violet-600 text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm disabled:opacity-50 flex-shrink-0 hover:opacity-90 transition-opacity"
+          aria-label="Send"
+          className="flex items-center justify-center rounded-[9px] transition-opacity"
+          style={{
+            width: 34,
+            height: 34,
+            background: input.trim() ? 'var(--fg)' : 'var(--bg-sunken)',
+            color: input.trim() ? 'var(--bg)' : 'var(--fg-4)',
+            flexShrink: 0,
+            opacity: isLoading ? 0.5 : 1,
+            border: input.trim() ? 'none' : '1px solid var(--border)',
+          }}
         >
-          ↑
+          <SendIcon />
         </button>
       </form>
-      <p className="text-center text-[10px] text-muted-foreground pb-2">
-        using your API key · context-aware
-      </p>
     </div>
   )
 }

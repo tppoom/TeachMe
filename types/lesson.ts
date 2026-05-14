@@ -1,6 +1,17 @@
-export type Depth = 'beginner' | 'intermediate' | 'advanced'
 export type Provider = 'anthropic' | 'openai'
 export type VisualType = 'mermaid' | 'chart' | 'code'
+
+export type TeachingFormat =
+  | 'mental_model'
+  | 'definition'
+  | 'analogy'
+  | 'step_by_step'
+  | 'real_world_scenario'
+  | 'comparison_table'
+  | 'code_example'
+  | 'wrong_way'
+  | 'common_mistakes'
+  | 'recap'
 
 export interface MermaidVisual {
   type: 'mermaid'
@@ -29,13 +40,43 @@ export interface CodeVisual {
 
 export type Visual = MermaidVisual | ChartVisual | CodeVisual
 
+export interface LessonExample {
+  title: string
+  body: string
+  code?: string
+  language?: string
+}
+
+export interface LessonExercise {
+  prompt: string
+  hint: string
+  solution: string
+}
+
+export interface Subtopic {
+  id: string
+  title: string
+  summary: string
+  content: string
+  formats: TeachingFormat[]
+  examples: LessonExample[]
+  commonMistakes: string[]
+  visuals: Visual[]
+}
+
 export interface LessonSection {
   id: string
   title: string
-  content: string
+  objective?: string
+  hook?: string
+  subtopics?: Subtopic[]
+  content?: string
+  examples?: LessonExample[]
+  commonMistakes?: string[]
+  visuals?: Visual[]
+  exercise?: LessonExercise | null
   keyPoints: string[]
   summary: string
-  visuals: Visual[]
 }
 
 export interface LessonContent {
@@ -51,7 +92,6 @@ export interface LessonRecord {
   topic: string
   priorKnowledge: string | null
   goals: string | null
-  depth: Depth
   provider: Provider
   content: LessonContent
   sourceUrls: string[]

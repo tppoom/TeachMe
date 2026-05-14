@@ -3,32 +3,27 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-}
-
-model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  anthropicKeyEnc  String?
-  openaiKeyEnc     String?
-  activeProvider   String   @default("anthropic")
-  lessons          Lesson[]
-  createdAt        DateTime @default(now())
+  provider = "sqlite"
 }
 
 model Lesson {
   id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title          String
   topic          String
   priorKnowledge String?
   goals          String?
-  depth          String
   provider       String
   content        Json
-  sourceUrls     String[]
-  sourceFiles    String[]
+  atlas          Json?
+  syllabus       Json?
+  language       String   @default("English")
+  sourceUrls     String   @default("[]")
+  sourceFiles    String   @default("[]")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Config {
+  key   String @id
+  value String
 }
