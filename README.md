@@ -7,12 +7,10 @@ Generate complete, structured courses on any topic — with diagrams, runnable c
 - **AI-generated courses** — multi-chapter lessons with objectives, examples, exercises, and key points
 - **Five-stage pipeline** — Intake → Atlas → Syllabus → Author → Verify produces a thorough curriculum, not just a summary
 - **Mermaid diagrams** — auto-generated when a concept is spatial or relational
-- **Runnable code playgrounds** — Python, Go, Rust, Java via Piston API; JS/TS via Sandpack
 - **Context-aware AI tutor** — chat panel knows the entire course and which chapter you're reading
 - **Course editor** — edit any chapter, apply changes across the whole course, attach reference files
 - **Import / Export** — share courses as `.teachme` files
 - **Multiple AI providers** — use a local CLI (no API key) or a remote API key
-- **Dark / light theme**
 - **Fully local** — SQLite database, no cloud account needed
 
 ---
