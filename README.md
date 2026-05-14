@@ -27,7 +27,7 @@ Generate complete, structured courses on any topic — with diagrams, runnable c
 ## Quick Start
 
 ```bash
-git clone https://github.com/your-username/teachme.git
+git clone https://github.com/tppoom/teachme.git
 cd teachme
 npm install
 cp .env.local.example .env.local
